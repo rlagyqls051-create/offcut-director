@@ -30,17 +30,19 @@ const CamLink = (() => {
   }
 
   /* ---------- Canon CCAPI ---------- */
+  // camIp에 포트를 명시하면 그대로 사용 (프록시/개발용), 아니면 카메라 기본 8080
+  const host = ip => ip.includes(':') ? ip : `${ip}:8080`;
   const canon = {
     // /ccapi/ver100/deviceinformation → {productname, serialnumber, firmwareversion}
-    ping: ip => http('GET', `http://${ip}:8080/ccapi/ver100/deviceinformation`),
+    ping: ip => http('GET', `http://${host(ip)}/ccapi/ver100/deviceinformation`),
     start: async ip => {
       // 무비 모드가 아니면 recbutton이 안 먹는 기종이 있어 먼저 moviemode on
-      try { await http('POST', `http://${ip}:8080/ccapi/ver100/shooting/control/moviemode`, { action: 'on' }); } catch {}
-      return http('POST', `http://${ip}:8080/ccapi/ver100/shooting/control/recbutton`, { action: 'start' });
+      try { await http('POST', `http://${host(ip)}/ccapi/ver100/shooting/control/moviemode`, { action: 'on' }); } catch {}
+      return http('POST', `http://${host(ip)}/ccapi/ver100/shooting/control/recbutton`, { action: 'start' });
     },
-    stop: ip => http('POST', `http://${ip}:8080/ccapi/ver100/shooting/control/recbutton`, { action: 'stop' }),
+    stop: ip => http('POST', `http://${host(ip)}/ccapi/ver100/shooting/control/recbutton`, { action: 'stop' }),
     // /event/polling: addedcontents(새 파일 URL) + 기종에 따라 recording 상태
-    status: ip => http('GET', `http://${ip}:8080/ccapi/event/polling?continue=off`).then(r => {
+    status: ip => http('GET', `http://${host(ip)}/ccapi/event/polling?continue=off`).then(r => {
       const d = (r && r.data) || {};
       let file = null;
       if (Array.isArray(d.addedcontents) && d.addedcontents.length)
@@ -52,7 +54,7 @@ const CamLink = (() => {
   /* ---------- Sony Camera Remote API (JSON-RPC) ---------- */
   let sonyId = 1;
   const sonyRpc = (ip, method, params = []) =>
-    http('POST', `http://${ip}:8080/sony/camera`, { method, params, id: sonyId++, version: '1.0' });
+    http('POST', `http://${host(ip)}/sony/camera`, { method, params, id: sonyId++, version: '1.0' });
   const sony = {
     ping: ip => sonyRpc(ip, 'getAvailableApiList'),
     start: async ip => {
@@ -70,13 +72,53 @@ const CamLink = (() => {
     }),
   };
 
-  /* ---------- BLE 공용 링크 (Sony RMT-P1BT 에뮬 / GoPro Open GoPro) ---------- */
-  const blePlugin = () => {
+  /* ---------- BLE 공용 링크 (Sony RMT-P1BT 에뮬 / GoPro Open GoPro) ----------
+   * 네이티브: @capacitor-community/bluetooth-le. 웹: 크롬 Web Bluetooth 폴백 —
+   * 수동 스캔 대신 requestDevice 피커로 카메라 선택 (Web BT는 raw 스캔 미지원). */
+  const blePlugin = svcs => {
     const P = window.Capacitor && window.Capacitor.Plugins;
     const B = P && P.BleClient;
-    if (!B) throw new Error('BLE는 네이티브 앱에서만 지원됩니다');
-    return B;
+    if (B) return B;
+    if (typeof navigator !== 'undefined' && navigator.bluetooth) return webBleShim(svcs);
+    throw new Error('BLE는 네이티브 앱 또는 크롬(Web Bluetooth)에서만 지원됩니다');
   };
+  // BleClient 인터페이스 호환 Web Bluetooth 쉼 (테스트/개발용)
+  function webBleShim(svcs) {
+    const cache = {};
+    const charFor = async (id, svc, ch) => {
+      const e = cache[id];
+      if (!e) throw new Error('BLE 미연결');
+      const k = svc + '/' + ch;
+      if (!e.chars[k]) {
+        const s = await e.device.gatt.getPrimaryService(svc);
+        e.chars[k] = await s.getCharacteristic(ch);
+      }
+      return e.chars[k];
+    };
+    return {
+      __web: true,
+      initialize: async () => { if (!await navigator.bluetooth.getAvailability()) throw new Error('블루투스가 꺼져 있습니다'); },
+      requestLEScan: async (opts, cb) => {
+        const dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: svcs });
+        cache[dev.id] = { device: dev, chars: {} };
+        cb({ __picked: true, device: { deviceId: dev.id, name: dev.name || 'BLE 카메라' }, localName: dev.name });
+      },
+      stopLEScan: async () => {},
+      connect: async (id, onDisc) => {
+        const e = cache[id];
+        if (!e) throw new Error('unknown device');
+        e.device.addEventListener('gattserverdisconnected', onDisc);
+        await e.device.gatt.connect();
+      },
+      createBond: async () => {},
+      startNotifications: async (id, svc, ch, cb) => {
+        const c = await charFor(id, svc, ch);
+        await c.startNotifications();
+        c.addEventListener('characteristicvaluechanged', ev => cb(ev.target.value));
+      },
+      write: async (id, svc, ch, dv) => { await (await charFor(id, svc, ch)).writeValueWithResponse(dv); },
+    };
+  }
   function makeBleLink({ match, nty, onNotify, notFoundMsg }) {
     const L = { dev: null, name: null, rec: null, connecting: null };
     L.connected = () => !!L.dev;
@@ -84,15 +126,15 @@ const CamLink = (() => {
       if (L.dev) return L.name;
       if (L.connecting) return L.connecting;
       L.connecting = (async () => {
-        const B = blePlugin();
+        const B = blePlugin([nty.svc]);
         await B.initialize();
         const found = await new Promise((resolve, reject) => {
           const to = setTimeout(() => {
             B.stopLEScan().catch(() => {});
             reject(new Error(notFoundMsg));
-          }, 12000);
+          }, B.__web ? 60000 : 12000); // 웹 피커는 사용자 선택 대기 필요
           B.requestLEScan({ allowDuplicates: false }, r => {
-            if (!match(r)) return;
+            if (!r.__picked && !match(r)) return;
             clearTimeout(to);
             B.stopLEScan().catch(() => {});
             resolve(r.device);
@@ -257,7 +299,7 @@ const CamLink = (() => {
       return info;
     }
     if (g.type === 'canon') {
-      const base = `http://${g.ip}:8080/ccapi/ver100`;
+      const base = `http://${host(g.ip)}/ccapi/ver100`;
       const [dev, bat, stor, temp] = await Promise.allSettled([
         http('GET', `${base}/deviceinformation`),
         http('GET', `${base}/devicestatus/battery`),
