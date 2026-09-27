@@ -34,13 +34,19 @@
 
 ## 오프컷 계정 / 저장소
 
-설정에 `오프컷 ID` + `저장소 주소 + 비번`을 입력하면:
+설정에서 **Google 로그인** (Supabase Auth) — 로그인하면:
 
-- 파일명이 `ID_프로젝트_촬영로그_날짜` 형태가 되고, FCPXML `<metadata>`와 CSV 첫
-  컬럼에 ID가 박힘 → 오프컷 AI가 소유자를 인식해 자동 컷편집에 활용
+- 오프컷 ID = 구글 이메일로 자동 설정 → 파일명이 `ID_프로젝트_촬영로그_날짜` 형태가 되고,
+  FCPXML `<metadata>`와 CSV 첫 컬럼에 ID가 박힘 → 오프컷 AI가 소유자 인식
+- `지금 백업`으로 로그 메타데이터가 클라우드에 저장 / `복원`으로 되살림
+- 로그아웃 상태에선 테이크 목록 하단에 Offcut Studio 홍보 배너 표시, 로그인 시 숨김
 - `내 저장소로 전송` 버튼이 FCPXML+CSV+SRT+테이크 오디오/영상을 multipart로
-  한 번에 POST (`Authorization: Basic ID:비번`)
-- 비번은 폰 localStorage에만 저장됨 (서버 없는 앱이라 평문 — 공유 기기면 주의)
+  한 번에 POST (`Authorization: Bearer <Supabase JWT>` — 서버는 JWKS로 검증)
+- 네이티브 OAuth는 `offcutdirector://auth` 딥링크로 복귀
+
+설정: `config.js`에 Supabase URL + anon key 입력, `supabase/schema.sql`로 backups
+테이블 생성, Supabase Auth → Google provider 활성화 + redirect URL에
+`offcutdirector://auth` 추가. 미설정 시 로그인 UI 숨겨지고 완전 오프라인 동작.
 
 ## 프리미어 연동
 
@@ -74,7 +80,7 @@
 S = {
   project, fps, prefix, startNo, slate, sound, syncOffset, mic,
   cam, camFacing,          // 앱 안 카메라 모드 + 전면/후면
-  uid, upUrl, upw,         // 오프컷 ID + 저장소 주소/비번
+  uid, upUrl,              // 오프컷 ID(구글 이메일 자동) + 저장소 주소
   takes: [{ num, fname, startMs, endMs, status,  // take status: OK(편집에쓰자)|HOLD(보류)|NG(삭제)
             offsetMs?,                           // 이 테이크의 플래시 싱크 오프셋 (없으면 S.syncOffset)
             sections: [{start,end,status}],      // section status: OK(편집에쓰자)|KEEP(특이사항)|NG(삭제)

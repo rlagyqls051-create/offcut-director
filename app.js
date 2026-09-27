@@ -15,9 +15,8 @@ function fresh() {
     mic: false,           // 롤 중 마이크 녹음 + 박수 감지
     cam: false,           // 앱 안 카메라 — 셀프 촬영 모드 (롤 동안 영상 녹화)
     camFacing: 'user',    // 'user' 전면 | 'environment' 후면
-    uid: '',              // 오프컷 ID — 파일명/FCPXML/CSV에 삽입 → 오프컷 AI가 소유자 인식
+    uid: '',              // 오프컷 ID — Google 로그인 이메일로 자동 설정. 파일명/FCPXML/CSV에 삽입
     upUrl: '',            // 내 저장소 업로드 주소
-    upw: '',              // 저장소 비번 (이 폰 localStorage에만 저장)
     takes: [],          // {num, fname, startMs, endMs, status, sections:[{start,end,status}], memos:[{ms,text}], note}
     seq: 1,
     cur: null,          // rolling take: {num, fname, startMs, secStart, sections:[], memos:[]}
@@ -33,7 +32,6 @@ if (S.cam == null) S.cam = false;
 if (S.camFacing == null) S.camFacing = 'user';
 if (S.uid == null) S.uid = '';
 if (S.upUrl == null) S.upUrl = '';
-if (S.upw == null) S.upw = '';
 if (S.cur) delete S.cur.cutAt;
 const save = () => localStorage.setItem(LS_KEY, JSON.stringify(S));
 
@@ -481,7 +479,6 @@ const blobToB64 = blob => new Promise((res, rej) => {
 });
 
 /* ---------- 내 저장소 업로드 (오프컷 AI 연동용) ---------- */
-const b64 = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
 const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + 'MB' : Math.ceil(b / 1024) + 'KB';
 const blobBytes = map => [...map.values()].reduce((a, v) => a + v.blob.size, 0);
 
@@ -510,11 +507,11 @@ async function uploadAll() {
     }
   const res = await fetch(S.upUrl, {
     method: 'POST',
-    headers: { Authorization: 'Basic ' + b64(`${S.uid}:${S.upw}`) },
+    headers: { Authorization: 'Bearer ' + Cloud.token() },
     body: fd,
   });
   if (res.status === 401 || res.status === 403)
-    throw new Error('계정 인증 실패 — 오프컷 ID/비번을 확인하세요 (유료 계정 전용 기능)');
+    throw new Error('계정 인증 실패 — 다시 로그인해 보세요 (유료 계정 전용 기능)');
   if (!res.ok) throw new Error(`서버 응답 ${res.status}`);
 }
 
@@ -596,7 +593,8 @@ $('#expCancel').addEventListener('click', () => $('#exportSheet').classList.add(
   el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
 });
 $('#expUp').addEventListener('click', async e => {
-  if (!S.uid || !S.upUrl) return alert('설정에서 오프컷 ID·저장소 주소·비번을 먼저 입력하세요.');
+  if (!Cloud.user()) return alert('설정에서 Google 로그인을 먼저 해주세요.');
+  if (!S.upUrl) return alert('설정에서 저장소 주소를 입력하세요.');
   if (!S.takes.length && !audioBlobs.size && !videoBlobs.size) return alert('보낼 기록이 없습니다.');
   const btn = e.currentTarget, orig = btn.textContent;
   btn.disabled = true; btn.textContent = '전송 중…';
@@ -689,9 +687,7 @@ $('#btnSettings').addEventListener('click', () => {
   $('#setSound').checked = S.sound;
   $('#setMic').checked = S.mic;
   $('#setCam').checked = S.cam;
-  $('#setUid').value = S.uid;
   $('#setUpUrl').value = S.upUrl;
-  $('#setUpw').value = S.upw;
   $('#setSheet').classList.remove('hidden');
 });
 $('#setClose').addEventListener('click', () => {
@@ -703,9 +699,7 @@ $('#setClose').addEventListener('click', () => {
   S.sound = $('#setSound').checked;
   S.syncOffset = (+$('#setSync').value || 0) * 1000;
   S.mic = $('#setMic').checked;
-  S.uid = $('#setUid').value.trim();
   S.upUrl = $('#setUpUrl').value.trim();
-  S.upw = $('#setUpw').value;
   const camWas = S.cam;
   S.cam = $('#setCam').checked;
   save(); render();
@@ -723,6 +717,46 @@ $('#setReset').addEventListener('click', () => {
     document.body.classList.remove('rolling');
   }
 });
+
+/* ---------- 클라우드 로그인/백업 (선택 기능 — 오프라인 퍼스트 유지) ---------- */
+(function cloudUI() {
+  const st = $('#cloudStat'), promo = $('#promoBanner');
+  const cfg = window.OFFCUT_CONFIG || {};
+  if (promo) promo.href = cfg.studioUrl || '#';
+  if (!Cloud.configured() && $('#cloudBox')) $('#cloudBox').classList.add('hidden');
+  Cloud.onChange(u => {
+    if (promo) promo.classList.toggle('hidden', !!u); // 로그인 시 배너 숨김
+    if (u) { S.uid = u.email || u.id; save(); }       // 오프컷 ID = 구글 이메일
+    if (!Cloud.configured()) return;
+    $('#cloudAuth').textContent = u ? '로그아웃' : 'Google 로그인';
+    $('#cloudBackup').classList.toggle('hidden', !u);
+    $('#cloudRestore').classList.toggle('hidden', !u);
+    if (st) st.textContent = u
+      ? `${u.email || '계정'} — 백업/전송 가능 · 배너 해제됨`
+      : '로그인하면 로그가 클라우드에 백업되고 홍보 배너가 사라집니다';
+  });
+  $('#cloudAuth').addEventListener('click', async () => {
+    try {
+      if (Cloud.user()) { await Cloud.signOut(); S.uid = ''; save(); }
+      else { st.textContent = 'Google 로그인 창을 여는 중…'; await Cloud.signIn(); }
+    } catch (e) { st.textContent = '✗ ' + (e.message || '로그인 실패'); }
+  });
+  $('#cloudBackup').addEventListener('click', async () => {
+    try { await Cloud.backup(localStorage.getItem(LS_KEY) || '{}'); st.textContent = '✓ 백업 완료'; }
+    catch (e) { st.textContent = '✗ 백업 실패 — ' + (e.message || '네트워크 확인'); }
+  });
+  $('#cloudRestore').addEventListener('click', async () => {
+    try {
+      const data = await Cloud.restore();
+      if (!data) { st.textContent = '저장된 백업이 없습니다'; return; }
+      if (confirm('클라우드 백업으로 현재 로그를 덮어씁니다. 계속할까요?')) {
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+        location.reload();
+      }
+    } catch (e) { st.textContent = '✗ 복원 실패 — ' + (e.message || '네트워크 확인'); }
+  });
+  Cloud.init();
+})();
 
 render();
 if (S.cam) camOn().then(() => { if (S.cur) vStart(); });   // 카메라 모드면 프리뷰 복원 + 롤 중이면 녹화 재개
