@@ -115,6 +115,9 @@ function buildEDL() {
 
 function buildJSON() {
   return JSON.stringify({
+    format: 'offcut-cutlist/v1',           // Offcut Studio 인제스트 계약 버전 — 스키마 바꾸면 v2로
+    app: 'offcut',
+    camera: S.camType || 'off',            // 'off'=폰촬영/수동, 그 외=연동된 외부카메라 (fname 신뢰도 판별용)
     project: S.project, fps: S.fps, mode: S.mode,
     generated: new Date().toISOString(),
     takes: S.takes.map(t => ({
