@@ -1,20 +1,46 @@
 # OFFCUT-DIRECTOR — 세션 인계 문서
 
-> 최종 갱신: 2026-09-22 · 이 파일은 재개 시 현재 상태 정본. README는 사용자 문서, 이 파일은 작업 인계용.
+> 최종 갱신: 2026-09-27 (맥 세션) · 이 파일은 재개 시 현재 상태 정본. README는 사용자 문서, 이 파일은 작업 인계용.
 
 ## 이게 뭔가
 
 모바일 촬영 로거. 감독/조감독이 폰으로 롤 타임코드 + 구간 판정 + 메모를 기록하고
-FCPXML로 프리미어에 넘기는 도구. 본체는 서버·계정·DB 없이 동작 — 데이터는 폰 localStorage.
-선택적으로 "내 저장소" 서버 업로드 가능 (오프컷 AI 연동용, 계정 있는 사람만).
+FCPXML로 프리미어에 넘기는 도구. 본체는 서버 없이 동작 — 데이터는 폰 localStorage.
+선택적으로 Google 로그인(Supabase) + 로그 클라우드 백업 + "내 저장소" 업로드 가능.
+
+### 2026-09-27 맥 세션 (커밋 df1c917 → main)
+
+- **Google 로그인으로 인증 통합** — `uid/upw`(ID+비번) 입력 제거, 구글 이메일이 곧 오프컷 ID.
+  `auth.js`(Supabase lazy-load) + `config.js`(OFFCUT_studio 프로젝트 크리덴셜 주입됨).
+- **클라우드 백업** — `backups` 테이블(user_id+state jsonb+RLS)을 OFFCUT_studio DB에 적용 완료.
+  설정 시트에 Google 로그인 / 지금 백업 / 복원 버튼.
+- **홍보 배너** — 로그아웃 시 테이크 목록 하단에 Offcut Studio 배너, 로그인 시 숨김.
+- **저장소 업로드 인증 변경** — `Authorization: Basic` → `Bearer <Supabase JWT>`.
+  서버 측은 JWT를 Supabase JWKS로 검증하면 됨. `Cloud.token()` 접근자.
+- **딥링크 `offcutdirector://`** — 네이티브 OAuth 복귀용. iOS Info.plist + AndroidManifest
+  등록됨. Supabase uri_allow_list에 `offcutdirector://**` + GH Pages/Vercel URL 추가 완료.
+- **iOS 카메라 권한 문구 추가** — 원격에 인앱 카메라 있는데 `NSCameraUsageDescription`
+  누락돼 있던 것 수정 (없으면 iOS에서 getUserMedia 실패).
+- 플러그인 추가: `@capacitor/browser`, `@capacitor/app` (OAuth 시스템 브라우저 + 딥링크).
+- **Vercel 최신 배포됨** — `offcut-xi.vercel.app` (프로젝트명은 'offcut'으로 되어있고
+  production alias가 offcut-xi). GitHub Pages도 push로 자동 최신화됨.
+
+### 카메라 연동 브랜치 (`origin/camera-integration`)
+
+별도 라인으로 **카메라 연동이 이미 구현돼 있음** (MVP에선 제외, 후속 피처):
+Canon CCAPI / Sony Remote API + BLE(RMT-P1BT 에뮬, A7M4급) / Insta360 OSC / GoPro BLE,
+카메라측 REC 자동 롤/컷 + 파일명 매핑 + EDL/OTIO/AI-JSON 익스포트 + 모크 카메라 테스트
+(`tools/mockcam.js` 등). 단, 그 브랜치는 이 라인과 크게 갈라져 있어(www/ 구조, 별도 capture.js)
+이식 시 충돌 많음 — 필요하면 camera.js/exporters.js를 파일 단위로 가져오는 게 낫다.
 
 ### 2026-09-22 세션에서 추가된 것 (커밋 3aa2b45 → 173f572)
 
 - **앱 안 카메라** (`S.cam`): 스노우식 인앱 카메라. 프리뷰 상시 + 롤 동안 영상 녹화 →
   `videoBlobs`. 혼자 찍는 사람용 — 앱이 직접 찍으니 싱크 오프셋 사실상 0.
 - **오프컷 ID** (`S.uid`): 파일명 접두어 + FCPXML `<library><metadata>` + CSV `user` 컬럼.
-- **저장소 업로드** (`S.upUrl`+`S.upw`): 보내기 시트 `내 저장소로 전송` → multipart POST,
-  Basic auth. 영상/오디오 포함 여부 각각 체크박스 + 용량 표시. 401/403은 인증 실패로 안내.
+  → 9/27 세션에서 Google 이메일로 자동 설정으로 변경.
+- **저장소 업로드** (`S.upUrl`): 보내기 시트 `내 저장소로 전송` → multipart POST.
+  영상/오디오 포함 여부 각각 체크박스 + 용량 표시. → 9/27에 Bearer JWT로 인증 변경.
 - **오디오 절감**: 테이크 오디오를 모노 16kbps로 (분당 ~120KB — 싱크/분석용 초저용량).
 
 ### 과금 모델 메모 (사용자 방향성)
@@ -119,10 +145,9 @@ Content-Type: multipart/form-data   fields: uid, project, app='offcut-director'
 ## 알려진 한계 / 다음 할 일
 
 - 오디오/영상은 메모리 전용 — 영구 저장하려면 Capacitor Filesystem/IndexedDB로 옮겨야 함
-- 네이티브 빌드 시 iOS Info.plist에 NSCameraUsageDescription/NSMicrophoneUsageDescription
-  추가 필요 (인앱 카메라용) — 아직 네이티브 미빌드
-- 저장소 서버 자체는 아직 없음 — 위 계약대로 오프컷 AI에서 받는 엔드포인트 필요.
-  upUrl 비어있으면 전송 버튼이 설정 입력 유도 알림만 띄움
+- iOS NSCameraUsageDescription은 9/27에 추가됨 — 네이티브 미빌드 상태만 동일
+- 저장소 서버 자체는 아직 없음 — JWT Bearer 인증으로 받는 엔드포인트 필요 (오프컷 AI 측).
+  upUrl 비어있으면 전송 버튼이 로그인/설정 유도 알림만 띄움
 - 인앱 카메라 녹화 실기기 미검증 — iOS Safari는 MediaRecorder mp4 지원, Android Chrome은
   webm 가능성 (프리미어 직접 import 불가 → 변환 필요). 안드로이드 PWA 카메라 권한도 확인 요
 - 메모 내용 수정·구간 시간 ±조정 UI 없음 (판정만 순환 가능)
