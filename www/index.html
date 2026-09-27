@@ -67,6 +67,12 @@
   <div id="tlWrap"><div id="timeline"><div id="playhead"></div></div></div>
 
   <div id="takeList"></div>
+
+  <!-- 홍보 배너 — 로그아웃 상태에서만 표시 (로그인하면 숨김) -->
+  <a id="promoBanner" class="promo hidden" href="#" target="_blank" rel="noopener">
+    <span class="promoTag">광고</span>
+    <span class="promoText">촬영 로그 그대로 <b>AI 컷편집</b>까지 — <b>Offcut Studio</b></span>
+  </a>
 </main>
 
 <!-- CUT 판정 시트 -->
@@ -183,12 +189,22 @@
     </label>
     <label class="fld chk"><input type="checkbox" id="setSlate"> ROLL 시작 시 화면 플래시 + 삑 소리 (슬레이트 대용)</label>
     <label class="fld chk"><input type="checkbox" id="setSound"> 버튼 진동/사운드</label>
+    <div id="cloudBox" class="fld hidden">
+      <div class="row">
+        <button id="cloudAuth" class="miniBtn">Google 로그인</button>
+        <button id="cloudBackup" class="miniBtn hidden">지금 백업</button>
+        <button id="cloudRestore" class="miniBtn hidden">복원</button>
+      </div>
+      <div id="cloudStat" class="hint" style="margin-top:4px">로그인하면 로그가 클라우드에 백업되고 홍보 배너가 사라집니다</div>
+    </div>
     <p class="hint">리모컨/키보드: PageDown·→ = 채택, PageUp·← = 버림, ↑ = 보류, ↓ = 구간 취소, Enter = ROLL, Space = CUT</p>
     <button id="setClose" class="sheetCancel">닫기</button>
     <button id="setReset" class="danger">로그 전체 삭제</button>
   </div>
 </div>
 
+<script src="config.js"></script>
+<script src="auth.js"></script>
 <script src="capture.js"></script>
 <script src="camera.js"></script>
 <script src="exporters.js"></script>

@@ -1,5 +1,5 @@
 const CACHE = 'offcut-v5';
-const ASSETS = ['.', 'index.html', 'style.css', 'app.js', 'capture.js', 'camera.js', 'exporters.js', 'manifest.webmanifest', 'icon.svg', 'icon-512.png', 'icon-180.png'];
+const ASSETS = ['.', 'index.html', 'style.css', 'app.js', 'capture.js', 'camera.js', 'exporters.js', 'config.js', 'auth.js', 'manifest.webmanifest', 'icon.svg', 'icon-512.png', 'icon-180.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
   self.skipWaiting();

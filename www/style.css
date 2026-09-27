@@ -184,3 +184,17 @@ body.vport #camWrap { aspect-ratio:9/16; max-height:44dvh; width:auto; margin:0 
   flex:none; background:#0a84ff; color:#fff; border:none; border-radius:10px;
   padding:0 16px; font-size:14px; font-weight:700;
 }
+
+/* promo banner — 로그아웃 시 테이크 목록 하단 */
+.promo {
+  display:flex; align-items:center; gap:10px; text-decoration:none;
+  margin:14px 12px 20px; padding:12px 14px; border-radius:14px;
+  background:linear-gradient(135deg,#1a2f52 0%,#0d1b30 100%);
+  border:1px solid #2a4a7f;
+}
+.promoTag {
+  flex:none; font-size:10px; color:#7aa0d8; border:1px solid #2a4a7f;
+  border-radius:4px; padding:1px 5px;
+}
+.promoText { font-size:13px; color:#a8c4ef; line-height:1.35; }
+.promoText b { color:#fff; }

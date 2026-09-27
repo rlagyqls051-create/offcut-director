@@ -52,6 +52,18 @@ PWA(https://offcut-xi.vercel.app)는 같은 코드로 유지.
     Canon `recording` 필드는 기종/펌웨어 의존 — 안 나오는 기종은 파일 이벤트만 동작
   - Sony `getEvent`는 구형 Remote API 모델 기준 — 신형은 기종별 확인 필요
 
+### 클라우드 로그인/백업 (선택 — 미설정 시 완전 오프라인)
+
+로그인은 필수가 아님 — 로그인하면 로그 메타데이터가 클라우드에 백업되고 홍보 배너가 사라짐.
+로그아웃 상태에선 테이크 목록 하단에 Offcut Studio 홍보 배너 표시.
+
+- `www/config.js`에 Supabase `supabaseUrl` + `supabaseAnonKey` 입력
+- `supabase/schema.sql`을 Supabase SQL Editor에서 실행 (backups 테이블 + RLS)
+- Supabase Auth → Providers → Google 활성화 + Google Cloud OAuth 클라이언트 설정
+- 네이티브: Google 동의창이 시스템 브라우저로 열리고 `offcut://` 딥링크로 복귀
+- 백업은 로그 JSON만 — 영상 클립은 용량 문제로 zip 공유 사용
+- SDK는 로그인 시에만 CDN에서 lazy-load — 오프라인 촬영 현장에 영향 없음
+
 ## 사용 흐름
 
 1. `ROLL` — (shoot 모드: 녹화 시작 / log 모드: 화면 플래시 + 1kHz 삑)

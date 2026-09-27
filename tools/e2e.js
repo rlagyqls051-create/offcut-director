@@ -64,7 +64,7 @@ URL.revokeObjectURL = () => {};
 const key = k => (docLs.keydown || []).forEach(fn => fn({ key: k, target: { tagName: 'DIV' }, repeat: false, preventDefault: () => {} }));
 
 /* ---------- 앱 로드 ---------- */
-const src = ['capture.js', 'camera.js', 'exporters.js', 'app.js']
+const src = ['config.js', 'auth.js', 'capture.js', 'camera.js', 'exporters.js', 'app.js']
   .map(f => fs.readFileSync(path.join(__dirname, '..', 'www', f), 'utf8').replace(/^'use strict';/, ''))
   .join('\n;\n');
 eval(src + '\n;globalThis.__appLoaded = { S };');

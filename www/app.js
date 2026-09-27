@@ -599,6 +599,46 @@ document.addEventListener('keydown', e => {
   } else if (k === ' ' || k === 'Enter') { e.preventDefault(); roll(); }
 });
 
+/* ---------- 클라우드 로그인/백업 (선택 기능 — 오프라인 퍼스트 유지) ---------- */
+(function cloudUI() {
+  const box = $('#cloudBox'), st = $('#cloudStat'), promo = $('#promoBanner');
+  if (!box) return;
+  const cfg = window.OFFCUT_CONFIG || {};
+  if (promo) promo.href = cfg.studioUrl || '#';
+  if (Cloud.configured()) box.classList.remove('hidden');
+  Cloud.onChange(u => {
+    if (promo) promo.classList.toggle('hidden', !!u); // 로그인 시 배너 숨김
+    if (!Cloud.configured()) return;
+    $('#cloudAuth').textContent = u ? '로그아웃' : 'Google 로그인';
+    $('#cloudBackup').classList.toggle('hidden', !u);
+    $('#cloudRestore').classList.toggle('hidden', !u);
+    if (st) st.textContent = u
+      ? `${u.email || '계정'} — 로그 백업 가능 · 배너 해제됨`
+      : '로그인하면 로그가 클라우드에 백업되고 홍보 배너가 사라집니다';
+  });
+  $('#cloudAuth').addEventListener('click', async () => {
+    try {
+      if (Cloud.user()) await Cloud.signOut();
+      else { st.textContent = 'Google 로그인 창을 여는 중…'; await Cloud.signIn(); }
+    } catch (e) { st.textContent = '✗ ' + (e.message || '로그인 실패'); }
+  });
+  $('#cloudBackup').addEventListener('click', async () => {
+    try { await Cloud.backup(localStorage.getItem(LS_KEY) || '{}'); st.textContent = '✓ 백업 완료'; }
+    catch (e) { st.textContent = '✗ 백업 실패 — ' + (e.message || '네트워크 확인'); }
+  });
+  $('#cloudRestore').addEventListener('click', async () => {
+    try {
+      const data = await Cloud.restore();
+      if (!data) { st.textContent = '저장된 백업이 없습니다'; return; }
+      if (confirm('클라우드 백업으로 현재 로그를 덮어씁니다. 계속할까요?')) {
+        localStorage.setItem(LS_KEY, JSON.stringify(data));
+        location.reload();
+      }
+    } catch (e) { st.textContent = '✗ 복원 실패 — ' + (e.message || '네트워크 확인'); }
+  });
+  Cloud.init();
+})();
+
 render();
 applyMode();
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
