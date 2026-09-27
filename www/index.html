@@ -18,15 +18,30 @@
 <header>
   <div class="proj" id="hProject">오늘의 촬영</div>
   <div class="hbtns">
+    <button id="btnMode" class="hbtn mode">로거</button>
     <button id="btnExport" class="hbtn">보내기</button>
     <button id="btnSettings" class="hbtn">설정</button>
   </div>
 </header>
 
 <main>
+  <div id="camWrap" class="hidden">
+    <video id="camView" playsinline muted autoplay></video>
+    <button id="btnFlipCam" title="전/후면 전환">⇄</button>
+  </div>
+
+  <div id="cdOverlay" class="hidden">
+    <div id="cdNum">3</div>
+    <div class="cdBtns">
+      <button id="cdSkip">바로 시작</button>
+      <button id="cdCancel">취소</button>
+    </div>
+  </div>
+
   <div id="clockWrap">
     <div id="recDot"></div>
     <div id="takeLabel">STANDBY</div>
+    <span id="linkDot" class="hidden" title="카메라 링크"></span>
     <div id="clock">00:00:00:00</div>
     <div id="wallSub"></div>
   </div>
@@ -76,10 +91,26 @@
     <p class="hint">FCPXML을 프리미어에 임포트하면 테이크별 클립 + NG 마커가 타임라인에 뜹니다. 카메라 파일명 패턴이 맞으면 자동 릴링크됩니다.</p>
     <div class="expBtns">
       <button id="expFcp" class="expBtn">FCPXML 보내기/저장</button>
+      <button id="expFcpSel" class="expBtn">FCPXML 선택본 (버림 제외)</button>
       <button id="expSrt" class="expBtn">SRT 자막 보내기/저장</button>
       <button id="expCsv" class="expBtn">CSV 보내기/저장</button>
+      <button id="expEdl" class="expBtn">EDL (DaVinci Resolve) 보내기/저장</button>
+      <button id="expJson" class="expBtn">AI 편집용 JSON 보내기/저장</button>
+      <button id="expOtio" class="expBtn">OTIO (OpenTimelineIO) 보내기/저장</button>
+      <button id="expClipsAll" class="expBtn">녹화 클립 전체 공유</button>
+      <button id="expZip" class="expBtn">프로젝트 패키지 (.zip — 클립+로그 전부)</button>
     </div>
     <button id="expCancel" class="sheetCancel">닫기</button>
+  </div>
+</div>
+
+<!-- 클립 플레이어 시트 -->
+<div id="playerSheet" class="sheet hidden">
+  <div class="sheetBox">
+    <div class="sheetTitle" id="playerTitle">클립</div>
+    <video id="playerView" controls playsinline></video>
+    <button id="playerShare" class="expBtn" style="margin-top:12px">클립 공유/저장</button>
+    <button id="playerClose" class="sheetCancel">닫기</button>
   </div>
 </div>
 
@@ -87,6 +118,33 @@
 <div id="setSheet" class="sheet hidden">
   <div class="sheetBox">
     <div class="sheetTitle">설정</div>
+    <label class="fld">모드
+      <select id="setMode">
+        <option value="log">카메라 로거 (Sony/Canon 등 외부 카메라)</option>
+        <option value="shoot">폰 촬영 (앱 안에서 직접 녹화)</option>
+      </select>
+    </label>
+    <label class="fld" id="facingFld">폰 촬영 카메라
+      <select id="setFacing">
+        <option value="environment">후면</option>
+        <option value="user">전면 (셀프캠)</option>
+      </select>
+    </label>
+    <label class="fld" id="orientFld">녹화 방향
+      <select id="setOrient">
+        <option value="landscape">가로 16:9 (유튜브·인터뷰)</option>
+        <option value="portrait">세로 9:16 (쇼츠·릴스)</option>
+      </select>
+    </label>
+    <label class="fld" id="cdFld">촬영 시작 카운트다운
+      <select id="setCd">
+        <option value="0">없음</option>
+        <option value="3">3초</option>
+        <option value="5">5초</option>
+        <option value="10">10초</option>
+      </select>
+    </label>
+    <p class="hint">폰 촬영 모드는 수 분 단위 테이크용입니다. 긴 인터뷰 롤은 카메라 로거 모드를 권장합니다. 롤 중 앱을 나가면 녹화가 중단됩니다.</p>
     <label class="fld">프로젝트명 <input id="setProject" autocomplete="off"></label>
     <label class="fld">프레임레이트
       <select id="setFps">
@@ -100,6 +158,23 @@
         <option value="60">60</option>
       </select>
     </label>
+    <label class="fld">카메라 연동 (로거 모드 — ROLL/CUT에 REC 연동)
+      <select id="setCamType">
+        <option value="off">끔 — 수동 로깅</option>
+        <option value="canon">Canon (CCAPI Wi-Fi)</option>
+        <option value="sony">Sony (구형 Remote API Wi-Fi)</option>
+        <option value="sonyble">Sony 신형 (블루투스)</option>
+        <option value="insta360">Insta360 (OSC Wi-Fi)</option>
+        <option value="gopro">GoPro (블루투스)</option>
+      </select>
+    </label>
+    <label class="fld" id="camIpFld">카메라 IP <span class="hint">폰이 카메라 Wi-Fi에 접속된 상태여야 함</span>
+      <div class="row">
+        <input id="setCamIp" placeholder="192.168.1.2" inputmode="decimal" autocomplete="off">
+        <button id="camTest" class="miniBtn">테스트</button>
+      </div>
+    </label>
+    <div id="camLinkStat" class="hint" style="margin-top:-8px"></div>
     <label class="fld">카메라 파일명 <span class="hint">예: C0001.MP4 → 프리픽스 C, 시작번호 1</span>
       <div class="row">
         <input id="setPrefix" maxlength="4" autocomplete="off">
@@ -108,11 +183,15 @@
     </label>
     <label class="fld chk"><input type="checkbox" id="setSlate"> ROLL 시작 시 화면 플래시 + 삑 소리 (슬레이트 대용)</label>
     <label class="fld chk"><input type="checkbox" id="setSound"> 버튼 진동/사운드</label>
+    <p class="hint">리모컨/키보드: PageDown·→ = 채택, PageUp·← = 버림, ↑ = 보류, ↓ = 구간 취소, Enter = ROLL, Space = CUT</p>
     <button id="setClose" class="sheetCancel">닫기</button>
     <button id="setReset" class="danger">로그 전체 삭제</button>
   </div>
 </div>
 
+<script src="capture.js"></script>
+<script src="camera.js"></script>
+<script src="exporters.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,3 +1,11 @@
 .vercel
 .DS_Store
 node_modules/
+
+# capacitor native build artifacts
+ios/App/Pods/
+ios/App/build/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties

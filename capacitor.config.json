@@ -1,0 +1,12 @@
+{
+  "appId": "com.offcut.app",
+  "appName": "offcut",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0a0a0a"
+  },
+  "android": {
+    "backgroundColor": "#0a0a0a"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "offcut",
+  "version": "0.1.0",
+  "private": true,
+  "description": "offcut — 1인 촬영 + 테이크 로거",
+  "scripts": {
+    "sync": "cap sync",
+    "ios": "cap open ios",
+    "android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.3.0",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/share": "^8.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2"
+  }
+}

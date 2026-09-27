@@ -28,6 +28,10 @@ body.ngseg #recDot { background:#ff9500; }
 
 #takeLabel { font-size:13px; letter-spacing:.12em; color:#888; font-weight:700; }
 body.rolling #takeLabel { color:#ff3b30; }
+#linkDot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-left:6px; background:#555; vertical-align:1px; }
+#linkDot.ok { background:#30d158; box-shadow:0 0 6px #30d15888; }
+#linkDot.err { background:#ff3b30; box-shadow:0 0 6px #ff3b3088; }
+#linkDot.hidden { display:none; }
 #clock { font-size:clamp(44px,13vw,72px); font-weight:200; font-variant-numeric:tabular-nums; font-feature-settings:"tnum"; letter-spacing:.02em; }
 body.rolling #clock { font-weight:600; }
 #wallSub { font-size:12px; color:#555; font-variant-numeric:tabular-nums; }
@@ -125,3 +129,58 @@ body.rolling #playhead { display:block; }
 .fld.chk input { width:20px; height:20px; margin:0; }
 .danger { width:100%; margin-top:14px; background:none; border:1px solid #5a2222; color:#ff6b62; border-radius:10px; padding:11px; font-size:14px; }
 .hidden { display:none !important; }
+
+/* shoot mode camera preview */
+#camWrap {
+  position:relative; width:100%; aspect-ratio:16/9; max-height:34dvh;
+  background:#000; border-radius:14px; overflow:hidden; margin-bottom:8px; flex:none;
+}
+#camView { width:100%; height:100%; object-fit:cover; transform:scaleX(1); }
+body.selfcam #camView { transform:scaleX(-1); }
+#btnFlipCam {
+  position:absolute; top:8px; right:8px; width:38px; height:38px; border-radius:50%;
+  background:rgba(0,0,0,.55); border:1px solid #444; color:#fff; font-size:17px;
+}
+body.rolling #camWrap { outline:2px solid #ff3b30; }
+
+/* clip buttons in take rows */
+.cbtn {
+  flex:none; width:34px; height:34px; border-radius:9px;
+  background:#1c1c1e; border:1px solid #333; color:#0a84ff; font-size:14px;
+}
+
+/* clip player sheet */
+#playerView { width:100%; max-height:55dvh; background:#000; border-radius:12px; }
+
+/* mode toggle in header */
+.hbtn.mode { color:#0a84ff; border-color:#0a84ff33; font-weight:700; }
+
+/* portrait preview */
+body.vport #camWrap { aspect-ratio:9/16; max-height:44dvh; width:auto; margin:0 auto 8px; }
+
+/* countdown overlay */
+#cdOverlay {
+  position:fixed; inset:0; z-index:80; background:rgba(0,0,0,.92);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:36px;
+}
+#cdNum { font-size:34vw; font-weight:200; font-variant-numeric:tabular-nums; color:#fff; line-height:1; }
+.cdBtns { display:flex; gap:12px; }
+.cdBtns button {
+  border-radius:14px; border:1px solid #444; background:#1c1c1e; color:#ccc;
+  padding:14px 22px; font-size:16px; font-weight:700;
+}
+.cdBtns #cdSkip { background:#c82f28; border-color:#c82f28; color:#fff; }
+
+.emptySub { display:block; margin-top:8px; font-size:11px; color:#333; }
+
+/* section boundary nudge */
+.badj {
+  background:none; border:1px solid #333; border-radius:5px; color:#666;
+  font-size:10px; padding:1px 5px; margin-left:4px;
+}
+.badj:active { color:#0a84ff; border-color:#0a84ff; }
+
+.miniBtn {
+  flex:none; background:#0a84ff; color:#fff; border:none; border-radius:10px;
+  padding:0 16px; font-size:14px; font-weight:700;
+}
