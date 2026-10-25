@@ -22,9 +22,28 @@ function fresh() {
     cur: null,          // rolling take: {num, fname, startMs, secStart, sections:[], memos:[]}
   };
 }
-let S;
-try { S = JSON.parse(localStorage.getItem(LS_KEY) || localStorage.getItem('offcut.v1') || localStorage.getItem('director.v1')) || fresh(); } catch { S = fresh(); }
-localStorage.removeItem('offcut.v1'); localStorage.removeItem('director.v1');
+let S = fresh();
+// Keep the legacy copy until a valid snapshot is durably stored and read back.
+for (const key of [LS_KEY, 'offcut.v1', 'director.v1']) {
+  let loaded = false;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    const value = JSON.parse(raw);
+    if (!value || !Array.isArray(value.takes) || value.takes.some(t => !t || typeof t !== 'object')) continue;
+    S = Object.assign(fresh(), value);
+    loaded = true;
+    if (key !== LS_KEY) {
+      const snapshot = JSON.stringify(S);
+      localStorage.setItem(LS_KEY, snapshot);
+      if (localStorage.getItem(LS_KEY) === snapshot) localStorage.removeItem(key);
+    }
+    break;
+  } catch {
+    // Quota/access failure must not discard an already loaded legacy project.
+    if (loaded) break;
+  }
+}
 S.takes.forEach(t => { if (t.status === 'KEEP') t.status = 'HOLD'; });
 if (S.syncOffset == null) S.syncOffset = 0;
 if (S.mic == null) S.mic = false;
